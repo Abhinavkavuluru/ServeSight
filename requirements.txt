@@ -7,3 +7,4 @@ matplotlib
 scikit-learn
 torch
 opencv-python-headless==4.8.0.76  # ✅ Works without libGL.so.1
+
