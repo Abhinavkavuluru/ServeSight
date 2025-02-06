@@ -1,0 +1,9 @@
+streamlit
+numpy
+pandas
+gdown
+ultralytics
+matplotlib
+scikit-learn
+torch
+opencv-python-headless==4.8.0.76  # ✅ Fixes OpenCV import issues
