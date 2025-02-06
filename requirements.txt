@@ -1,10 +1,12 @@
 streamlit
-numpy<2  # Downgrade NumPy to avoid compatibility issues
+numpy<2  # ✅ Fixes OpenCV compatibility
 pandas
 gdown
 ultralytics
 matplotlib
 scikit-learn
-torch
+torch==2.0.1  # ✅ Downgrade to fix torch.classes issue
+torchvision==0.15.2
 opencv-python-headless==4.8.0.76  # ✅ Works without libGL.so.1
+
 
