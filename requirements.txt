@@ -1,3 +1,4 @@
+python==3.10.12
 streamlit
 numpy
 pandas
@@ -6,4 +7,4 @@ ultralytics
 matplotlib
 scikit-learn
 torch
-opencv-python-headless==4.8.0.76  # ✅ Fixes OpenCV import issues
+opencv-python-headless==4.8.0.76  # ✅ Works without libGL.so.1
