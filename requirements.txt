@@ -7,6 +7,6 @@ matplotlib
 scikit-learn
 torch==2.0.1  # ✅ Downgrade to fix torch.classes issue
 torchvision==0.15.2
-opencv-python-headless==4.8.0.76  # ✅ Works without libGL.so.1
+opencv-python-headless==4.6.0.66  # ✅ Use older version to avoid libGL.so.1 issue
 
 
