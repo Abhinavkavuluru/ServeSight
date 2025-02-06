@@ -14,6 +14,42 @@ class BallTracker:
             "ball_hits_coordinates.csv", "transformed_ball_hits_coordinates.csv"
         )  # Path for transformed CSV
 
+    def interpolate_missing_ball_positions(self, ball_positions):
+    """
+    This function fills in missing ball positions by using interpolation.
+    If there are gaps in tracking, it ensures smooth data points.
+    """
+    # Debugging: Check the first 5 ball positions before processing
+    print("🔍 Debug: Ball positions before interpolation:", ball_positions[:5])
+
+    # Ensure ball_positions is a list of dicts
+    if not isinstance(ball_positions, list) or not all(isinstance(x, dict) for x in ball_positions):
+        raise ValueError("❌ ERROR: ball_positions must be a list of dictionaries!")
+
+    position_list = [x.get(1, []) for x in ball_positions]
+
+    # Check if positions are valid
+    if not position_list or all(not pos for pos in position_list):
+        raise ValueError("❌ ERROR: No valid ball positions found for interpolation.")
+
+    # Convert to DataFrame
+    position_df = pd.DataFrame(position_list, columns=['x1', 'y1', 'x2', 'y2'])
+
+    # Ensure the DataFrame is not empty
+    if position_df.empty:
+        raise ValueError("❌ ERROR: DataFrame is empty after extracting ball positions.")
+
+    # Interpolate missing values
+    position_df = position_df.interpolate().bfill()
+
+    # Convert back to list of dictionaries
+    ball_positions = [{1: x} for x in position_df.to_numpy().tolist()]
+
+    # Debugging: Check the first 5 ball positions after interpolation
+    print("✅ Debug: Ball positions after interpolation:", ball_positions[:5])
+
+    return ball_positions
+
     def __str__(self):
         return str(self.model)
 
