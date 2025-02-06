@@ -1,8 +1,9 @@
 streamlit
-opencv-python
 numpy
 pandas
 gdown
 ultralytics
 matplotlib
 scikit-learn
+torch
+opencv-python-headless==4.5.5.64  # ✅ Use this instead of opencv-python
