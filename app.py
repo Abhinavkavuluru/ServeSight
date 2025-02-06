@@ -3,7 +3,11 @@ import streamlit as st
 # ✅ Move this to the top before any other Streamlit command
 st.set_page_config(page_title="Tennis Analysis App")
 
+
 import os
+os.environ["OPENCV_VIDEOIO_PRIORITY_MSMF"] = "0"  # ✅ Fixes OpenCV video issues
+os.system("ln -s /dev/null /dev/raw1394")  # ✅ Prevents missing `/dev/raw1394` error
+
 import time
 import tempfile
 import cv2
