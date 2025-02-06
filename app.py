@@ -5,8 +5,7 @@ st.set_page_config(page_title="Tennis Analysis App")
 
 
 import os
-os.environ["OPENCV_VIDEOIO_PRIORITY_MSMF"] = "0"  # ✅ Fixes OpenCV video issues
-os.system("ln -s /dev/null /dev/raw1394")  # ✅ Prevents missing `/dev/raw1394` error
+os.environ["OPENCV_VIDEOIO_PRIORITY_MSMF"] = "0"  # ✅ Fixes OpenCV video issue
 
 import time
 import tempfile
