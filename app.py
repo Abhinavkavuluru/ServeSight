@@ -4,7 +4,7 @@ import streamlit as st
 st.set_page_config(page_title="Tennis Analysis App")
 
 import os
-os.system('apt-get update && apt-get install -y libgl1')
+os.system('apt-get update && apt-get install -y libgl1 libglib2.0-0')
 
 import time
 import tempfile
