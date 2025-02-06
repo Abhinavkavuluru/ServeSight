@@ -3,10 +3,7 @@ import streamlit as st
 # ✅ Move this to the top before any other Streamlit command
 st.set_page_config(page_title="Tennis Analysis App")
 
-
 import os
-os.environ["OPENCV_VIDEOIO_PRIORITY_MSMF"] = "0"  # ✅ Fixes OpenCV video issue
-
 import time
 import tempfile
 import cv2
@@ -15,6 +12,9 @@ from dotline import DotLine
 from ball_hits import BallTracker
 from heatmap import TennisHeatmap
 from image_ploting import ImagePlotter
+
+# ✅ Fixes OpenCV VideoWriter encoder issue
+os.environ["OPENCV_VIDEOIO_PRIORITY_MSMF"] = "0"
 
 # Google Drive file IDs (Replace with actual IDs)
 GDRIVE_FILES = {
@@ -58,9 +58,7 @@ st.write("Upload a tennis match video to process, track ball movements, and gene
 # Ensure output directory exists
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_DIR = os.path.join(BASE_DIR, "output")
-
-if not os.path.exists(OUTPUT_DIR):
-    os.makedirs(OUTPUT_DIR)
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # Initialize session state
 if "processed_video" not in st.session_state:
@@ -92,123 +90,90 @@ if uploaded_file:
     with open(input_video_path, "wb") as f:
         f.write(uploaded_file.read())
 
-    # Display uploaded video
-    st.subheader("🎥 Uploaded Video")
-    st.video(input_video_path)
+    # ✅ Check if video file is valid before processing
+    if not os.path.exists(input_video_path) or os.path.getsize(input_video_path) == 0:
+        st.error("❌ Error: Uploaded video is empty or invalid.")
+    else:
+        # Display uploaded video
+        st.subheader("🎥 Uploaded Video")
+        st.video(input_video_path)
 
-    # Processing button
-    if st.button("⚡ Process Video & Generate Heatmap"):
-        st.write("⏳ Processing video, please wait...")
+        # Processing button
+        if st.button("⚡ Process Video & Generate Heatmap"):
+            st.write("⏳ Processing video, please wait...")
 
-        # Step 1: Process the video (from video.py)
-        with st.spinner("🔄 Processing video..."):
-            tracker = DotLine(MODEL_PATH, input_video_path, output_video_path)
-            tracker.process_video()
+            # Step 1: Process the video (from dotline.py)
+            with st.spinner("🔄 Processing video..."):
+                tracker = DotLine(MODEL_PATH, input_video_path, output_video_path)
+                tracker.process_video()
 
-        # Step 2: Track ball hits and generate coordinates
-        with st.spinner("📌 Tracking ball hits..."):
-            hits = BallTracker(MODEL_PATH, input_video_path, STUB_PATH, ball_hits_csv)
-            hits.process_ball_hits()
+            # Step 2: Track ball hits and generate coordinates
+            with st.spinner("📌 Tracking ball hits..."):
+                hits = BallTracker(MODEL_PATH, input_video_path, STUB_PATH, ball_hits_csv)
+                hits.process_ball_hits()
 
-        # Step 3: Generate heatmap
-        with st.spinner("🌡️ Generating heatmap..."):
-            heatmap = TennisHeatmap(transformed_csv, heatmap_image)
-            heatmap.generate_heatmap()
+            # Step 3: Generate heatmap
+            with st.spinner("🌡️ Generating heatmap..."):
+                heatmap = TennisHeatmap(transformed_csv, heatmap_image)
+                heatmap.generate_heatmap()
 
-        # Step 4: Plot ball hits on the court
-        with st.spinner("📍 Plotting ball hits on the court..."):
-            plotter = ImagePlotter(transformed_csv, input_video_path, output_image)
-            plotter.plot_coordinates_on_image()
+            # Step 4: Plot ball hits on the court
+            with st.spinner("📍 Plotting ball hits on the court..."):
+                plotter = ImagePlotter(transformed_csv, input_video_path, output_image)
+                plotter.plot_coordinates_on_image()
 
-        # Verify files
-        time.sleep(2)
+            # ✅ Verify files
+            time.sleep(2)
 
-        if os.path.exists(output_video_path) and os.path.getsize(output_video_path) > 0:
-            st.session_state.processed_video = output_video_path
-            st.success("✅ Video processing complete!")
-        else:
-            st.error("❌ Processed video is missing.")
+            st.session_state.processed_video = output_video_path if os.path.exists(output_video_path) else None
+            st.session_state.heatmap_image = heatmap_image if os.path.exists(heatmap_image) else None
+            st.session_state.output_image = output_image if os.path.exists(output_image) else None
+            st.session_state.processing_done = True
 
-        if os.path.exists(heatmap_image) and os.path.getsize(heatmap_image) > 0:
-            st.session_state.heatmap_image = heatmap_image
-            st.success("✅ Heatmap generated successfully!")
-        else:
-            st.error("❌ Heatmap missing!")
+# ✅ Fix for missing converted video issue
+def convert_video(input_path, output_path):
+    cap = cv2.VideoCapture(input_path)
+    
+    if not cap.isOpened():
+        st.error("❌ Error: Unable to read processed video.")
+        return False
 
-        if os.path.exists(output_image) and os.path.getsize(output_image) > 0:
-            st.session_state.output_image = output_image
-            st.success("✅ Court plot generated successfully!")
-        else:
-            st.error("❌ Court plot missing!")
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # ✅ More compatible encoding
+    fps = int(cap.get(cv2.CAP_PROP_FPS)) or 30
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-        st.session_state.processing_done = True
+    if width == 0 or height == 0:
+        st.error("❌ Error: Processed video has invalid dimensions.")
+        return False
 
-# Display outputs only if processing is done
+    out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if not ret:
+            break
+        out.write(frame)
+
+    cap.release()
+    out.release()
+    return True
+
 if st.session_state.processing_done:
     st.subheader("🎬 Processed Video")
 
     if st.session_state.processed_video:
-        # Convert video to a display-compatible format
-        def convert_video(input_path, output_path):
-            cap = cv2.VideoCapture(input_path)
-            fourcc = cv2.VideoWriter_fourcc(*'avc1')
-            fps = int(cap.get(cv2.CAP_PROP_FPS)) or 30
-            width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-            height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-
-            if width == 0 or height == 0:
-                st.error("❌ Error: Processed video has invalid dimensions.")
-                return False
-
-            out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
-
-            while cap.isOpened():
-                ret, frame = cap.read()
-                if not ret:
-                    break
-                out.write(frame)
-
-            cap.release()
-            out.release()
-            return True
-
         success = convert_video(st.session_state.processed_video, converted_video_path)
 
-        if success:
-            with open(converted_video_path, "rb") as video_file:
-                processed_video_bytes = video_file.read()
-                if len(processed_video_bytes) > 0:
-                    st.video(processed_video_bytes)
-                else:
-                    st.error("❌ Converted video is empty.")
+        if success and os.path.exists(converted_video_path):
+            st.video(converted_video_path)
         else:
-            st.error("❌ Could not convert processed video.")
+            st.error("❌ Error: Failed to convert processed video.")
 
-    # Display Heatmap
     st.subheader("📊 Heatmap of Ball Hits")
     if st.session_state.heatmap_image:
-        with open(st.session_state.heatmap_image, "rb") as img_file:
-            img_bytes = img_file.read()
-            st.image(img_bytes, use_column_width=True)
-    else:
-        st.error("⚠️ Heatmap image not found.")
+        st.image(st.session_state.heatmap_image, use_column_width=True)
 
-    # Display Ball Hits on Court
     st.subheader("📌 Ball Hits on the Court")
     if st.session_state.output_image:
-        with open(st.session_state.output_image, "rb") as img_file:
-            img_bytes = img_file.read()
-            st.image(img_bytes, use_column_width=True)
-    else:
-        st.error("⚠️ Court plot image not found.")
-
-    # Download buttons
-    st.write("📥 Download Processed Files:")
-
-    if st.session_state.heatmap_image:
-        with open(st.session_state.heatmap_image, "rb") as file:
-            st.download_button("⬇ Download Heatmap", data=file, file_name="heatmap.jpg")
-
-    if st.session_state.output_image:
-        with open(st.session_state.output_image, "rb") as file:
-            st.download_button("⬇ Download Court Plot", data=file, file_name="court_plot.jpg")
+        st.image(st.session_state.output_image, use_column_width=True)
