@@ -67,5 +67,5 @@ class DotLine:
     def release_resources(self):
         self.cap.release()
         self.out.release()
-        cv2.destroyAllWindows()
+        
         print(f"dotline video saved to: {self.output_video_path}")
