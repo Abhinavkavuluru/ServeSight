@@ -5,8 +5,6 @@ gdown
 ultralytics
 matplotlib
 scikit-learn
-torch==2.0.1  # ✅ Downgrade to fix torch.classes issue
+torch==2.0.1  # ✅ Fixes torch.classes issue
 torchvision==0.15.2
-opencv-python-headless==4.6.0.66  # ✅ Use older version to avoid libGL.so.1 issue
-
-
+opencv-python-headless==4.9.0.80  # ✅ Latest working version
