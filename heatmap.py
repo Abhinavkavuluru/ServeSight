@@ -57,9 +57,12 @@ class TennisHeatmap:
 
         # Populate heatmap with direction change points
         for _, row in data.iterrows():
-            x, y = int(row['x']), int(row['y'])
-            if 0 <= x < self.heatmap_width and 0 <= y < self.heatmap_height:
-                heatmap[y, x] += 1  # Increment intensity at this point
+            try:
+                x, y = int(row['x']), int(row['y'])
+                if 0 <= x < self.heatmap_width and 0 <= y < self.heatmap_height:
+                    heatmap[y, x] += 1  # Increment intensity at this point
+            except ValueError:
+                print(f"⚠️ WARNING: Skipped invalid row with x={row.get('x')} and y={row.get('y')}")
 
         # Apply Gaussian blur to smooth the heatmap
         heatmap = cv2.GaussianBlur(heatmap, (31, 31), 0)
