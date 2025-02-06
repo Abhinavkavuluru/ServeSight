@@ -10,6 +10,9 @@ class BallTracker:
         self.video_path = video_path
         self.stub_path = stub_path
         self.output_csv_path = output_csv_path
+        self.transformed_csv_path = self.output_csv_path.replace(
+            "ball_hits_coordinates.csv", "transformed_ball_hits_coordinates.csv"
+        )  # Path for transformed CSV
 
     def __str__(self):
         return str(self.model)
@@ -63,14 +66,6 @@ class BallTracker:
         hit_coordinates = ball_hit_frames[['mid_x', 'mid_y']].values.tolist()
         return hit_frame_indices, hit_coordinates
 
-    def interpolate_missing_ball_positions(self, ball_positions):
-        position_list = [x.get(1, []) for x in ball_positions]
-        position_df = pd.DataFrame(position_list, columns=['x1', 'y1', 'x2', 'y2'])
-        position_df = position_df.interpolate()
-        position_df = position_df.bfill()
-        ball_positions = [{1: x} for x in position_df.to_numpy().tolist()]
-        return ball_positions
-
     def process_ball_hits(self):
         cap = cv2.VideoCapture(self.video_path)
         frames = []
@@ -85,14 +80,18 @@ class BallTracker:
         ball_detections = self.interpolate_missing_ball_positions(ball_detections)
         hit_frames, hit_coordinates = self.get_ball_shot_frames(ball_detections)
 
-        if self.output_csv_path:
-            os.makedirs(os.path.dirname(self.output_csv_path), exist_ok=True)  # ✅ Ensure output directory exists
-            hit_data = {'frame_id': hit_frames, 'x': [coord[0] for coord in hit_coordinates], 'y': [coord[1] for coord in hit_coordinates]}
-            hit_df = pd.DataFrame(hit_data)
-            hit_df.to_csv(self.output_csv_path, index=False)
-            
-            # ✅ Debugging
-            if os.path.exists(self.output_csv_path):
-                print(f"✅ Ball hit CSV saved at: {self.output_csv_path}")
-            else:
-                print(f"❌ ERROR: Ball hit CSV could not be saved at {self.output_csv_path}")
+        # Save ball hit coordinates
+        os.makedirs(os.path.dirname(self.output_csv_path), exist_ok=True)
+        hit_data = {'frame_id': hit_frames, 'x': [coord[0] for coord in hit_coordinates], 'y': [coord[1] for coord in hit_coordinates]}
+        hit_df = pd.DataFrame(hit_data)
+        hit_df.to_csv(self.output_csv_path, index=False)
+
+        # ✅ Save transformed ball hit coordinates
+        transformed_df = hit_df.copy()
+        transformed_df['x'] = transformed_df['x'] * 1.0  # Modify transformation logic if needed
+        transformed_df['y'] = transformed_df['y'] * 1.0
+        transformed_df.to_csv(self.transformed_csv_path, index=False)
+
+        # ✅ Debugging
+        print(f"✅ Ball hit CSV saved at: {self.output_csv_path}")
+        print(f"✅ Transformed ball hit CSV saved at: {self.transformed_csv_path}")
