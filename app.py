@@ -109,15 +109,15 @@ if uploaded_file:
             # ✅ Verify files
             time.sleep(2)
 
-            # ✅ Move processed video & heatmap to persistent storage
+            # ✅ Move processed video & heatmap to persistent storage (Only if different)
             final_video_path = os.path.join(OUTPUT_DIR, "processed_video.mp4")
             final_heatmap_path = os.path.join(OUTPUT_DIR, "heatmap.jpg")
 
-            if os.path.exists(output_video_path):
+            if os.path.exists(output_video_path) and output_video_path != final_video_path:
                 shutil.copy(output_video_path, final_video_path)
                 st.session_state.processed_video = final_video_path
 
-            if os.path.exists(heatmap_image):
+            if os.path.exists(heatmap_image) and heatmap_image != final_heatmap_path:
                 shutil.copy(heatmap_image, final_heatmap_path)
                 st.session_state.heatmap_image = final_heatmap_path
 
@@ -128,9 +128,7 @@ if st.session_state.processing_done:
     st.subheader("🎬 Processed Video")
 
     if st.session_state.processed_video:
-        # ✅ Move video to persistent location before displaying
         final_video_path = os.path.join(OUTPUT_DIR, "processed_video.mp4")
-        shutil.copy(st.session_state.processed_video, final_video_path)
 
         # ✅ Ensure file exists before displaying
         if os.path.exists(final_video_path) and os.path.getsize(final_video_path) > 0:
@@ -141,9 +139,7 @@ if st.session_state.processing_done:
     st.subheader("📊 Heatmap of Ball Hits")
 
     if st.session_state.heatmap_image:
-        # ✅ Move heatmap to persistent location before displaying
         final_heatmap_path = os.path.join(OUTPUT_DIR, "heatmap.jpg")
-        shutil.copy(st.session_state.heatmap_image, final_heatmap_path)
 
         # ✅ Ensure file exists before displaying
         if os.path.exists(final_heatmap_path) and os.path.getsize(final_heatmap_path) > 0:
