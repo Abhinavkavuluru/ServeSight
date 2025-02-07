@@ -8,17 +8,12 @@ import time
 import tempfile
 import shutil
 import cv2
-import gdown  # Google Drive file downloader & uploader
-from pydrive.auth import GoogleAuth
-from pydrive.drive import GoogleDrive
+import gdown  # Google Drive downloader
+from PyDrive2.auth import GoogleAuth
+from PyDrive2.drive import GoogleDrive
 from dotline import DotLine
 from ball_hits import BallTracker
 from heatmap import TennisHeatmap
-
-# ✅ Authenticate Google Drive Access
-gauth = GoogleAuth()
-gauth.LocalWebserverAuth()
-drive = GoogleDrive(gauth)
 
 # ✅ Fix OpenCV VideoWriter encoder issue
 os.environ["OPENCV_VIDEOIO_PRIORITY_MSMF"] = "0"
@@ -31,6 +26,15 @@ GDRIVE_FILES = {
 
 # ✅ Google Drive Folder ID to Store Results
 GDRIVE_RESULTS_FOLDER = "your_google_drive_folder_id"
+
+# ✅ Authenticate Google Drive Access
+def authenticate_google_drive():
+    """Authenticate with Google Drive."""
+    gauth = GoogleAuth()
+    gauth.LocalWebserverAuth()  # Use this for local authentication
+    return GoogleDrive(gauth)
+
+drive = authenticate_google_drive()
 
 # Directory to store models
 MODEL_DIR = "models"
