@@ -11,6 +11,14 @@ from heatmap import TennisHeatmap
 # ✅ Fix OpenCV VideoWriter encoder issue
 os.environ["OPENCV_VIDEOIO_PRIORITY_MSMF"] = "0"
 
+# ✅ Initialize `st.session_state` variables
+if "processing_done" not in st.session_state:
+    st.session_state.processing_done = False
+if "processed_video" not in st.session_state:
+    st.session_state.processed_video = None
+if "heatmap_image" not in st.session_state:
+    st.session_state.heatmap_image = None
+
 # Google Drive file IDs (Replace with actual IDs)
 GDRIVE_FILES = {
     "yolo5_last.pt": "1YegZe9_HXEVuXEA-dbjn70DbBv0vxbFR",
@@ -23,7 +31,7 @@ os.makedirs(MODEL_DIR, exist_ok=True)
 
 def download_file(file_name, file_id):
     file_path = os.path.join(MODEL_DIR, file_name)
-
+    
     if not os.path.exists(file_path):  
         with st.spinner(f"Downloading {file_name} from Google Drive..."):
             gdown.download(f"https://drive.google.com/uc?id={file_id}", file_path, quiet=False)
@@ -51,7 +59,6 @@ if uploaded_file:
 
     input_video_path = os.path.join(temp_dir, uploaded_file.name)
     output_video_path = os.path.join(temp_dir, "processed_video.mp4")
-    converted_video_path = os.path.join(temp_dir, "converted_video.mp4")
     heatmap_image = os.path.join(temp_dir, "heatmap.jpg")
     ball_hits_csv = os.path.join(temp_dir, "ball_hits_coordinates.csv")
     transformed_csv = os.path.join(temp_dir, "transformed_ball_hits_coordinates.csv")
@@ -79,8 +86,9 @@ if uploaded_file:
 
         st.session_state.processed_video = output_video_path if os.path.exists(output_video_path) else None
         st.session_state.heatmap_image = heatmap_image if os.path.exists(heatmap_image) else None
-        st.session_state.processing_done = True
+        st.session_state.processing_done = True  # ✅ Now this variable is initialized
 
+# ✅ Fix for missing converted video issue
 def convert_video(input_path, output_path):
     cap = cv2.VideoCapture(input_path)
 
@@ -109,6 +117,7 @@ def convert_video(input_path, output_path):
     out.release()
     return True
 
+# ✅ Now this block will work correctly without KeyError
 if st.session_state.processing_done:
     st.subheader("🎬 Processed Video")
     st.video(st.session_state.processed_video)
