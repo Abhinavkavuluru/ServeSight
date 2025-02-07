@@ -8,10 +8,17 @@ import time
 import tempfile
 import shutil
 import cv2
-import gdown  # Google Drive file downloader
+import gdown  # Google Drive file downloader & uploader
+from pydrive.auth import GoogleAuth
+from pydrive.drive import GoogleDrive
 from dotline import DotLine
 from ball_hits import BallTracker
 from heatmap import TennisHeatmap
+
+# ✅ Authenticate Google Drive Access
+gauth = GoogleAuth()
+gauth.LocalWebserverAuth()
+drive = GoogleDrive(gauth)
 
 # ✅ Fix OpenCV VideoWriter encoder issue
 os.environ["OPENCV_VIDEOIO_PRIORITY_MSMF"] = "0"
@@ -22,13 +29,12 @@ GDRIVE_FILES = {
     "ball_tracker.pkl": "1tjM6IVFVf-q5-fcWryC3H1ytlfNbcNeR"
 }
 
+# ✅ Google Drive Folder ID to Store Results
+GDRIVE_RESULTS_FOLDER = "your_google_drive_folder_id"
+
 # Directory to store models
 MODEL_DIR = "models"
 os.makedirs(MODEL_DIR, exist_ok=True)
-
-# Persistent storage for processed files
-OUTPUT_DIR = "output"
-os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # Function to download files from Google Drive
 def download_file(file_name, file_id):
@@ -75,10 +81,10 @@ st.title("🎾 Tennis Match Analysis App")
 st.write("Upload a tennis match video to process and generate a heatmap.")
 
 # Initialize session state
-if "processed_video" not in st.session_state:
-    st.session_state.processed_video = None
-if "heatmap_image" not in st.session_state:
-    st.session_state.heatmap_image = None
+if "processed_video_url" not in st.session_state:
+    st.session_state.processed_video_url = None
+if "heatmap_image_url" not in st.session_state:
+    st.session_state.heatmap_image_url = None
 if "processing_done" not in st.session_state:
     st.session_state.processing_done = False
 
@@ -91,13 +97,10 @@ if uploaded_file:
 
     input_video_path = os.path.join(temp_dir, uploaded_file.name)
     temp_output_video = os.path.join(temp_dir, "processed_video.mp4")
-    final_output_video = os.path.join(OUTPUT_DIR, "processed_video.mp4")
-
     temp_heatmap_image = os.path.join(temp_dir, "heatmap.jpg")
-    final_heatmap_image = os.path.join(OUTPUT_DIR, "heatmap.jpg")
 
-    ball_hits_csv = os.path.join(OUTPUT_DIR, "ball_hits_coordinates.csv")
-    transformed_csv = os.path.join(OUTPUT_DIR, "transformed_ball_hits_coordinates.csv")
+    ball_hits_csv = os.path.join(temp_dir, "ball_hits_coordinates.csv")
+    transformed_csv = os.path.join(temp_dir, "transformed_ball_hits_coordinates.csv")
 
     # Save uploaded file
     with open(input_video_path, "wb") as f:
@@ -130,43 +133,56 @@ if uploaded_file:
                 heatmap = TennisHeatmap(transformed_csv, temp_heatmap_image)
                 heatmap.generate_heatmap()
 
-            # ✅ Move processed files to persistent storage
-            shutil.move(temp_output_video, final_output_video)
-            shutil.move(temp_heatmap_image, final_heatmap_image)
+            # ✅ Upload files to Google Drive
+            def upload_to_drive(file_path, file_name):
+                try:
+                    file_drive = drive.CreateFile({
+                        "title": file_name,
+                        "parents": [{"id": GDRIVE_RESULTS_FOLDER}]
+                    })
+                    file_drive.SetContentFile(file_path)
+                    file_drive.Upload()
+                    return f"https://drive.google.com/uc?id={file_drive['id']}"
+                except Exception as e:
+                    st.error(f"❌ Google Drive Upload Error: {e}")
+                    return None
 
-            # ✅ Assign paths to session state
-            st.session_state.processed_video = final_output_video
-            st.session_state.heatmap_image = final_heatmap_image
+            processed_video_url = upload_to_drive(temp_output_video, "processed_video.mp4")
+            heatmap_image_url = upload_to_drive(temp_heatmap_image, "heatmap.jpg")
+
+            # ✅ Assign URLs to session state
+            if processed_video_url:
+                st.session_state.processed_video_url = processed_video_url
+            if heatmap_image_url:
+                st.session_state.heatmap_image_url = heatmap_image_url
             st.session_state.processing_done = True
 
-# ✅ Fix for missing converted video issue
+# ✅ Display Results from Google Drive
 if st.session_state.processing_done:
     st.subheader("🎬 Processed Video")
 
-    if st.session_state.processed_video and os.path.exists(st.session_state.processed_video):
-        st.video(st.session_state.processed_video)
+    if st.session_state.processed_video_url:
+        st.video(st.session_state.processed_video_url)
     else:
         st.error("❌ Error: Processed video could not be displayed.")
 
     st.subheader("📊 Heatmap of Ball Hits")
 
-    if st.session_state.heatmap_image and os.path.exists(st.session_state.heatmap_image):
-        st.image(st.session_state.heatmap_image, use_container_width=True)  # ✅ Fix for deprecated `use_column_width`
+    if st.session_state.heatmap_image_url:
+        st.image(st.session_state.heatmap_image_url, use_container_width=True)
     else:
         st.error("❌ Heatmap file missing.")
 
     # ✅ Debugging Output
     st.write("📂 Debugging Information:")
-    st.write(f"Processed Video Path: {st.session_state.processed_video}")
-    st.write(f"Heatmap Image Path: {st.session_state.heatmap_image}")
+    st.write(f"Processed Video URL: {st.session_state.processed_video_url}")
+    st.write(f"Heatmap Image URL: {st.session_state.heatmap_image_url}")
 
     # ✅ Download buttons
     st.write("📥 Download Processed Files:")
 
-    if st.session_state.processed_video:
-        with open(st.session_state.processed_video, "rb") as file:
-            st.download_button("⬇ Download Processed Video", data=file, file_name="processed_video.mp4")
+    if st.session_state.processed_video_url:
+        st.markdown(f"[⬇ Download Processed Video]({st.session_state.processed_video_url})")
 
-    if st.session_state.heatmap_image:
-        with open(st.session_state.heatmap_image, "rb") as file:
-            st.download_button("⬇ Download Heatmap", data=file, file_name="heatmap.jpg")
+    if st.session_state.heatmap_image_url:
+        st.markdown(f"[⬇ Download Heatmap]({st.session_state.heatmap_image_url})")
