@@ -8,10 +8,10 @@ from dotline import DotLine
 from ball_hits import BallTracker
 from heatmap import TennisHeatmap
 
-# ✅ Fix OpenCV VideoWriter encoder issue
+# ✅ Fix OpenCV VideoWriter encoder issue for Streamlit Cloud
 os.environ["OPENCV_VIDEOIO_PRIORITY_MSMF"] = "0"
 
-# ✅ Initialize `st.session_state` variables
+# ✅ Initialize session state variables
 if "processing_done" not in st.session_state:
     st.session_state.processing_done = False
 if "processed_video" not in st.session_state:
@@ -19,34 +19,35 @@ if "processed_video" not in st.session_state:
 if "heatmap_image" not in st.session_state:
     st.session_state.heatmap_image = None
 
-# Google Drive file IDs (Replace with actual IDs)
+# ✅ Google Drive model file IDs
 GDRIVE_FILES = {
     "yolo5_last.pt": "1YegZe9_HXEVuXEA-dbjn70DbBv0vxbFR",
     "ball_tracker.pkl": "1tjM6IVFVf-q5-fcWryC3H1ytlfNbcNeR"
 }
 
-# Directory to store models
-MODEL_DIR = "models"
+# ✅ Ensure model directory exists
+MODEL_DIR = os.path.abspath("models")
 os.makedirs(MODEL_DIR, exist_ok=True)
 
 def download_file(file_name, file_id):
+    """Download required models from Google Drive if missing."""
     file_path = os.path.join(MODEL_DIR, file_name)
-    
-    if not os.path.exists(file_path):  
-        with st.spinner(f"Downloading {file_name} from Google Drive..."):
+
+    if not os.path.exists(file_path) or os.path.getsize(file_path) == 0:
+        with st.spinner(f"📥 Downloading {file_name} from Google Drive..."):
             gdown.download(f"https://drive.google.com/uc?id={file_id}", file_path, quiet=False)
 
     if not os.path.exists(file_path) or os.path.getsize(file_path) == 0:
-        st.error(f"❌ Error: Failed to download {file_name}")
+        st.error(f"❌ Error: {file_name} download failed. Check file permissions.")
         return None
 
     return file_path
 
-# ✅ Download required models from Google Drive
+# ✅ Ensure YOLO model and stub exist
 MODEL_PATH = download_file("yolo5_last.pt", GDRIVE_FILES["yolo5_last.pt"])
 STUB_PATH = download_file("ball_tracker.pkl", GDRIVE_FILES["ball_tracker.pkl"])
 
-# Streamlit UI
+# ✅ Streamlit UI
 st.sidebar.title("📋 How to Use")
 st.title("🎾 Tennis Match Analysis App")
 st.write("Upload a tennis match video to process and generate a heatmap.")
@@ -54,7 +55,6 @@ st.write("Upload a tennis match video to process and generate a heatmap.")
 uploaded_file = st.file_uploader("📂 Upload a Tennis Match Video", type=["mp4", "avi", "mov", "mkv"])
 
 if uploaded_file:
-    # ✅ Use a temporary directory instead of "output"
     temp_dir = tempfile.mkdtemp()
 
     input_video_path = os.path.join(temp_dir, uploaded_file.name)
@@ -67,8 +67,17 @@ if uploaded_file:
     with open(input_video_path, "wb") as f:
         f.write(uploaded_file.read())
 
+    # ✅ Debugging
+    if not os.path.exists(input_video_path):
+        st.error("❌ Error: Uploaded video not saved correctly.")
+    else:
+        st.subheader("🎥 Uploaded Video")
+        st.video(input_video_path)
+
     # ✅ Process Video
     if st.button("⚡ Process Video & Generate Heatmap"):
+        st.write("⏳ Processing video, please wait...")
+
         with st.spinner("🔄 Processing video..."):
             tracker = DotLine(MODEL_PATH, input_video_path, output_video_path)
             tracker.process_video()
@@ -81,14 +90,23 @@ if uploaded_file:
             heatmap = TennisHeatmap(transformed_csv, heatmap_image)
             heatmap.generate_heatmap()
 
-        # ✅ Verify files
+        # ✅ Debugging: Check if files exist
         time.sleep(2)
+        if os.path.exists(output_video_path) and os.path.getsize(output_video_path) > 0:
+            st.session_state.processed_video = output_video_path
+            st.success(f"✅ Processed video saved: {output_video_path}")
+        else:
+            st.error("❌ Processed video is empty.")
 
-        st.session_state.processed_video = output_video_path if os.path.exists(output_video_path) else None
-        st.session_state.heatmap_image = heatmap_image if os.path.exists(heatmap_image) else None
-        st.session_state.processing_done = True  # ✅ Now this variable is initialized
+        if os.path.exists(heatmap_image) and os.path.getsize(heatmap_image) > 0:
+            st.session_state.heatmap_image = heatmap_image
+            st.success(f"✅ Heatmap generated: {heatmap_image}")
+        else:
+            st.error("❌ Heatmap image is empty.")
 
-# ✅ Fix for missing converted video issue
+        st.session_state.processing_done = True
+
+# ✅ Fix OpenCV Encoding Issue
 def convert_video(input_path, output_path):
     cap = cv2.VideoCapture(input_path)
 
@@ -96,7 +114,7 @@ def convert_video(input_path, output_path):
         st.error("❌ Error: Unable to read processed video.")
         return False
 
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # ✅ Use compatible encoding
     fps = int(cap.get(cv2.CAP_PROP_FPS)) or 30
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -117,10 +135,26 @@ def convert_video(input_path, output_path):
     out.release()
     return True
 
-# ✅ Now this block will work correctly without KeyError
+# ✅ Display Results
 if st.session_state.processing_done:
     st.subheader("🎬 Processed Video")
-    st.video(st.session_state.processed_video)
+
+    if st.session_state.processed_video:
+        converted_video_path = os.path.join(temp_dir, "converted_video.mp4")
+        success = convert_video(st.session_state.processed_video, converted_video_path)
+
+        if success and os.path.exists(converted_video_path):
+            st.video(converted_video_path)
+        else:
+            st.error("❌ Error: Processed video could not be displayed.")
 
     st.subheader("📊 Heatmap of Ball Hits")
-    st.image(st.session_state.heatmap_image, use_column_width=True)
+    if st.session_state.heatmap_image:
+        st.image(st.session_state.heatmap_image, use_column_width=True)
+    else:
+        st.error("❌ Heatmap file missing.")
+
+    # ✅ Debugging Output
+    st.write("📂 Debugging Information:")
+    st.write(f"Processed Video Path: {st.session_state.processed_video}")
+    st.write(f"Heatmap Image Path: {st.session_state.heatmap_image}")
