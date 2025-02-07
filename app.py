@@ -1,18 +1,17 @@
 import streamlit as st
-
-# ✅ Move this to the top before any other Streamlit command
-st.set_page_config(page_title="Tennis Analysis App")
-
 import os
 import time
 import tempfile
 import cv2
-import gdown  # Google Drive file downloader
+import gdown
 from dotline import DotLine
 from ball_hits import BallTracker
 from heatmap import TennisHeatmap
 
-# ✅ Fix OpenCV VideoWriter encoder issue
+# Set page config
+st.set_page_config(page_title="Tennis Analysis App")
+
+# Fix OpenCV VideoWriter encoder issue
 os.environ["OPENCV_VIDEOIO_PRIORITY_MSMF"] = "0"
 
 # Google Drive file IDs (Replace with actual IDs)
@@ -46,7 +45,7 @@ def download_file(file_name, file_id):
         st.error(f"❌ ERROR: Could not download {file_name}. Exception: {e}")
         return None
 
-# ✅ Download required models from Google Drive
+# Download required models from Google Drive
 MODEL_PATH = download_file("yolo5_last.pt", GDRIVE_FILES["yolo5_last.pt"])
 STUB_PATH = download_file("ball_tracker.pkl", GDRIVE_FILES["ball_tracker.pkl"])
 
@@ -90,8 +89,8 @@ if uploaded_file:
     temp_dir = tempfile.mkdtemp()
 
     input_video_path = os.path.join(temp_dir, uploaded_file.name)
-    output_video_path = os.path.join(temp_dir, "processed_video.mp4")
-    converted_video_path = os.path.join(temp_dir, "converted_video.mp4")
+    output_video_path = os.path.join(OUTPUT_DIR, "processed_video.mp4")
+    converted_video_path = os.path.join(OUTPUT_DIR, "converted_video.mp4")
 
     heatmap_image = os.path.join(OUTPUT_DIR, "heatmap.jpg")
     ball_hits_csv = os.path.join(OUTPUT_DIR, "ball_hits_coordinates.csv")
@@ -101,7 +100,7 @@ if uploaded_file:
     with open(input_video_path, "wb") as f:
         f.write(uploaded_file.read())
 
-    # ✅ Check if video file is valid before processing
+    # Check if video file is valid before processing
     if not os.path.exists(input_video_path) or os.path.getsize(input_video_path) == 0:
         st.error("❌ Error: Uploaded video is empty or invalid.")
     else:
@@ -128,14 +127,14 @@ if uploaded_file:
                 heatmap = TennisHeatmap(transformed_csv, heatmap_image)
                 heatmap.generate_heatmap()
 
-            # ✅ Verify files
+            # Verify files
             time.sleep(2)
 
             st.session_state.processed_video = output_video_path if os.path.exists(output_video_path) else None
             st.session_state.heatmap_image = heatmap_image if os.path.exists(heatmap_image) else None
             st.session_state.processing_done = True
 
-# ✅ Fix for missing converted video issue
+# Fix for missing converted video issue
 def convert_video(input_path, output_path):
     cap = cv2.VideoCapture(input_path)
 
@@ -143,7 +142,7 @@ def convert_video(input_path, output_path):
         st.error("❌ Error: Unable to read processed video.")
         return False
 
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # ✅ More compatible encoding
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # More compatible encoding
     fps = int(cap.get(cv2.CAP_PROP_FPS)) or 30
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -180,12 +179,12 @@ if st.session_state.processing_done:
     if st.session_state.heatmap_image:
         st.image(st.session_state.heatmap_image, use_column_width=True)
 
-    # ✅ Debugging Output
+    # Debugging Output
     st.write("📂 Debugging Information:")
     st.write(f"Processed Video Path: {output_video_path}")
     st.write(f"Heatmap Image Path: {heatmap_image}")
 
-    # ✅ Download buttons
+    # Download buttons
     st.write("📥 Download Processed Files:")
 
     if st.session_state.processed_video:
