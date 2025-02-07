@@ -71,9 +71,9 @@ if uploaded_file:
     input_video_path = os.path.join(temp_dir, uploaded_file.name)
     output_video_path = os.path.join(temp_dir, "processed_video.mp4")
 
-    heatmap_image = os.path.join(OUTPUT_DIR, "heatmap.jpg")
-    ball_hits_csv = os.path.join(OUTPUT_DIR, "ball_hits_coordinates.csv")
-    transformed_csv = os.path.join(OUTPUT_DIR, "transformed_ball_hits_coordinates.csv")
+    heatmap_image = os.path.join(temp_dir, "heatmap.jpg")
+    ball_hits_csv = os.path.join(temp_dir, "ball_hits_coordinates.csv")
+    transformed_csv = os.path.join(temp_dir, "transformed_ball_hits_coordinates.csv")
 
     # Save uploaded file
     with open(input_video_path, "wb") as f:
@@ -114,11 +114,11 @@ if uploaded_file:
             final_heatmap_path = os.path.join(OUTPUT_DIR, "heatmap.jpg")
 
             if os.path.exists(output_video_path) and output_video_path != final_video_path:
-                shutil.copy(output_video_path, final_video_path)
+                shutil.move(output_video_path, final_video_path)
                 st.session_state.processed_video = final_video_path
 
             if os.path.exists(heatmap_image) and heatmap_image != final_heatmap_path:
-                shutil.copy(heatmap_image, final_heatmap_path)
+                shutil.move(heatmap_image, final_heatmap_path)
                 st.session_state.heatmap_image = final_heatmap_path
 
             st.session_state.processing_done = True
